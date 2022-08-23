@@ -1,19 +1,22 @@
 // SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.0;
+pragma solidity 0.8.15;
 
 import "./Fnft.sol";
-import "./interface/IReview.sol";
+import "./interface/INft.sol";
+import "./Auth.sol";
 
-contract ReviewContract {
-    address public immutable admin = 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4;
+contract Service {
+    address public immutable admin = 0xB28333cab47389DE99277F1A79De9a80A8d8678b;
     address public FnftContractAdrs;
+    Auth internal AuthContract;
     uint public createReviewPrice;
     uint public likeReviewPrice;
     uint public TotalSupply = 1;
     bool lock = false;
 
-    constructor(address _fNftAdrs){
+    constructor(address _fNftAdrs, address _authAdrs){
         FnftContractAdrs = _fNftAdrs;
+        AuthContract = Auth(_authAdrs);
     }
 
     struct Review {
@@ -25,20 +28,22 @@ contract ReviewContract {
         address owner;
         address[] likedUser;
         uint price;
+        uint crDate;
     }
 
     mapping(uint => Review) public review_byId;
     mapping(address => uint[]) internal review_byOwner;
     mapping(string => uint[]) internal review_byStore;
 
-    modifier reEntrancyGuard {
+    modifier validationPipe(bytes memory _signature) {
+        require(AuthContract.authCheck(_signature), "ERR : Not on WhiteList");
         require(!lock, "ERR : Currently Locked");
         lock = true;
         _;
         lock = false;
     }
 
-    modifier onlyOwner {
+    modifier onlyAdmin {
         require(msg.sender == admin, "ERR : Only Admin");
         _;
     }
@@ -52,22 +57,18 @@ contract ReviewContract {
         string memory _storeId, 
         string memory _title, 
         string memory _description, 
-        string memory _uri
+        string memory _uri,
+        bytes memory _signature
         ) 
         external 
         payable
-        reEntrancyGuard
+        validationPipe(_signature)
         returns(uint)
         {
+            // @ Checks
             require(createReviewPrice <= msg.value, "ERR : Not Enough Price");
 
-            address[] memory liked;
-
-            // @ Interaction
-            // Send Fee
-            (bool sent, ) = admin.call{ value : createReviewPrice }("");
-            require(sent, "ERR : Fail To Sent Value");
-
+            // @ Effects
             // Call Mint Function
             (bool success, bytes memory data) = FnftContractAdrs.call(
                                                     abi.encodeWithSignature("mint(address,uint256,string)", msg.sender, 10000, _uri)
@@ -76,7 +77,8 @@ contract ReviewContract {
             require(success, "ERR : Fail To Call Minitng Function");
             (uint nftId) = abi.decode(data, (uint));
 
-            // @ Effects
+            address[] memory liked;
+
             review_byId[TotalSupply] = Review(
                                         TotalSupply,
                                         nftId,
@@ -85,13 +87,19 @@ contract ReviewContract {
                                         _description,
                                         msg.sender,
                                         liked,
-                                        0
+                                        0,
+                                        block.timestamp
                                     );
                                     
             review_byOwner[msg.sender].push(TotalSupply);
             review_byStore[_storeId].push(TotalSupply);
 
-            // Emit Event
+            // @ Interaction
+            // Send Fee
+            (bool sent, ) = admin.call{ value : createReviewPrice }("");
+            require(sent, "ERR : Fail To Sent Value");
+
+
             emit create_review(Review(
                                 TotalSupply, 
                                 nftId, 
@@ -100,7 +108,8 @@ contract ReviewContract {
                                 _description, 
                                 msg.sender, 
                                 liked,
-                                0
+                                0,
+                                block.timestamp
                             ));
 
             TotalSupply++;
@@ -108,16 +117,17 @@ contract ReviewContract {
         }
 
     // 리뷰 좋아요 (Caller : Like Action User) [Return : void];
-    function likeReview(uint _id) external payable reEntrancyGuard
+    function likeReview(uint _id, bytes memory _signature) external payable validationPipe(_signature)
     {
-        // Validation Check
+        // @ Checks
         require(TotalSupply > _id, "ERR : Review Not Exist");
         require(review_byId[_id].owner != msg.sender, "ERR : Can't Like Action Own Reivew");
         require(msg.value >= likeReviewPrice, "ERR : Not Enough Price");
-        
-        // Effects
+
+        // @ Effects
         review_byId[_id].likedUser.push(msg.sender);
 
+        // @ Interactions
         // Transfer Coin
         uint len = review_byId[_id].likedUser.length;
 
@@ -141,7 +151,7 @@ contract ReviewContract {
 
             for(uint i; i < len; i++) {
                 // ERC 1155 - 잔고체크
-                if(IReview(FnftContractAdrs).balanceOf(review_byId[_id].likedUser[i], _id) != 0){
+                if(INft(FnftContractAdrs).balanceOf(review_byId[_id].likedUser[i], _id) != 0){
                     // ERC 1155 Token을 보유하고 있다면? : 지급 & else no reward;
                     (bool sentShareHolders, ) = payable(review_byId[_id].likedUser[i]).call{value : shareHolders_amount}("");
                     require(sentShareHolders, "ERR : Send Coin To sentShareHolders error");
@@ -150,11 +160,10 @@ contract ReviewContract {
 
             require(sentAdmin, "ERR : Send Coin To Admin error");
             require(sentWriter, "ERR : Send Coin To Writer error");
-
+            
             emit like_reivew(_id, msg.sender);
         }
     }
-
     // 리뷰 조회 - By Owner (Caller : AnyOne) [Return : Review[]]
     function getReview_ByOwner(address _owner) external view returns(Review[] memory) {
         Review[] memory result = new Review[](review_byOwner[_owner].length);
@@ -165,7 +174,6 @@ contract ReviewContract {
 
         return result;
     }
-
     // 리뷰 조회 - By Store UUID (Caller : Anyone) [Return : Review[]]
     function getReview_ByStore(string memory _storeId) external view returns(Review[] memory) {
         Review[] memory result = new Review[](review_byStore[_storeId].length);
@@ -176,23 +184,23 @@ contract ReviewContract {
 
         return result;
     }
-
-    function registerForSale(uint _reviewId, uint _price) external {
+    // 판매 등록 (Caller : Review Owner) [Return : void]
+    function registerForSale(uint _reviewId, uint _price, bytes memory _signature) external validationPipe(_signature) {
         // @ Checks
         require(review_byId[_reviewId].owner == msg.sender, "ERR : Not Authorized");
         // @ Effects
         review_byId[_reviewId].price = _price;
     }
-
-    function withdrawSale(uint _reviewId) external {
+    // 판매 철회 (Caller : Review Owner) [Return : void]
+    function withdrawSale(uint _reviewId, bytes memory _signature) external validationPipe(_signature) {
         // @ Checks
         require(review_byId[_reviewId].owner == msg.sender, "ERR : Not Authorized");
 
         // @ Effects
         review_byId[_reviewId].price = 0;
     }
-
-    function saleReview(uint _reviewId) external payable reEntrancyGuard {
+    // 리뷰 구매 - (Caller : Buyer) [Return : void] <리뷰 보유자 : 97% & 어드민 : 3%>
+    function saleReview(uint _reviewId, bytes memory _signature) external payable validationPipe(_signature) {
         // @ Checks
         // Owner Cannot Call;
         require(msg.sender != review_byId[_reviewId].owner, "ERR : Can't buy owns Review");
@@ -214,7 +222,7 @@ contract ReviewContract {
         }
 
         // @ Interaction
-        uint tokenBalance = IReview(FnftContractAdrs).balanceOf(review_byId[_reviewId].owner, _reviewId);
+        uint tokenBalance = INft(FnftContractAdrs).balanceOf(review_byId[_reviewId].owner, _reviewId);
         
         (bool sentNft, ) = FnftContractAdrs.call(
                         abi.encodeWithSignature("transferFrom(address,address,uint256,uint256)", 
@@ -227,8 +235,8 @@ contract ReviewContract {
 
         require(sentNft, "ERR : Transfer NFT Failed");
 
-        (bool sentWriter, ) = payable(review_byId[_reviewId].owner).call{value : msg.value * 99/100}("");
-        (bool sentAdmin, ) = payable(review_byId[_reviewId].owner).call{value : msg.value * 1/100}("");
+        (bool sentWriter, ) = payable(review_byId[_reviewId].owner).call{value : msg.value * 97/100}("");
+        (bool sentAdmin, ) = payable(review_byId[_reviewId].owner).call{value : msg.value * 3/100}("");
 
         require(sentWriter, "ERR : Send Coin to Writer Failed");
         require(sentAdmin, "ERR : Send Coin to Admin Failed");
@@ -245,19 +253,16 @@ contract ReviewContract {
     }
 
     // Write Review 가격설정 (Caller : Admin) [Return : void]
-    function setWriteReviewPrice(uint _amount) external onlyOwner {
+    function setWriteReviewPrice(uint _amount) external onlyAdmin {
         createReviewPrice = _amount;
     }
-
     // Like Review 가격설정 (Caller : Admin) [Return : void]
-    function setLikeReviewPrice(uint _amount) external onlyOwner {
+    function setLikeReviewPrice(uint _amount) external onlyAdmin {
         likeReviewPrice = _amount;
     }
-
     // Emergency Stop (Caller : Admin) [Return : void]
-    function haltingContract() external onlyOwner returns(bool){
+    function haltingContract() external onlyAdmin returns(bool){
         lock = !lock;
-        return lock;    
+        return lock;
     }
-
 }

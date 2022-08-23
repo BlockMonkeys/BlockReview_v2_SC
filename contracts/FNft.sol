@@ -1,10 +1,10 @@
-//SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.0;
+// SPDX-License-Identifier: Unlicense
+pragma solidity 0.8.15;
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 
 contract FnftContract is ERC1155 {
-    address public immutable admin = 0x5B38Da6a701c568545dCfcB03FcB875f56beddC4;
+    address public immutable admin = 0xB28333cab47389DE99277F1A79De9a80A8d8678b;
     string public name;
     string public symbol;
     uint TotalSupply = 1;
