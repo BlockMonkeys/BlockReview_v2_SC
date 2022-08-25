@@ -45,9 +45,11 @@
 - 리뷰 생성 기능
 - 리뷰 좋아요 기능
 - 리뷰 조회 기능
-- 리뷰 판매 등록 및 철회 기능
-- 리뷰 판매 기능
-
+- 리뷰 NFT 판매 등록 및 철회 기능
+- 리뷰 NFT 판매 기능
+- 리뷰 작성 가격설정 (Only Admin)
+- 리뷰 좋아요 가격설정 (Only Admin)
+- Emergency Stop Halting 기능
 
 # DATABSE
 ![erd](https://user-images.githubusercontent.com/66409384/186615278-6b8ef518-41e8-4215-b8b0-a5299df1b360.png)
