@@ -32,7 +32,7 @@
 - `ethers.js` : web3 interaction javascript library (using in, Client)
 - `Nest.js` : Server Development
 - `PostgreSQL` : Database
-- `TypeORM` : Object-Relational Mapping for RDB
+- `TypeORM` : Object-Relational Mapping for RDB Tool
 - `React` : Client Development
 
 ---
