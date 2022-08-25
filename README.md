@@ -37,7 +37,7 @@
 ![SmartContractERD](https://user-images.githubusercontent.com/66409384/186618712-e1927327-28fc-4dd8-8b56-088127cc6a7d.png)
 
 ### FNFT Contract
-- Fractional NFT(ERC-1155) 템플릿
+- Fractional NFT(ERC-1155)
 
 ### Auth Contract
 - 유저의 서명 생성
