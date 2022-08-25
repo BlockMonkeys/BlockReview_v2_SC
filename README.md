@@ -1,8 +1,8 @@
 ## Basic Information
-> Website Demo -  
-> Back-End Github - https://github.com/BlockMonkeys/BlockReview_v2_BE
-> Front-End Github - 
-> BlockReview Version 1 - https://github.com/BlockMonkeys/Public_BlockReviewProject
+- Website Demo -  
+- Back-End Github - https://github.com/BlockMonkeys/BlockReview_v2_BE
+- Front-End Github - 
+- BlockReview Version 1 - https://github.com/BlockMonkeys/Public_BlockReviewProject
 
 ---
 
