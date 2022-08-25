@@ -1,8 +1,9 @@
 ## Basic Information
 - Website Demo -  
+- Smart Contract Github - https://github.com/BlockMonkeys/BlockReview_v2_SC
 - Back-End Github - https://github.com/BlockMonkeys/BlockReview_v2_BE
 - Front-End Github - 
-- BlockReview Version 1 - https://github.com/BlockMonkeys/Public_BlockReviewProject
+- BlockReview Version 1 Github - https://github.com/BlockMonkeys/Public_BlockReviewProject
 
 ---
 
