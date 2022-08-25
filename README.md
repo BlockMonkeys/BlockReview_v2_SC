@@ -30,10 +30,10 @@
 - `Openzepplin` : Solidity Library
 - `web3.js` : web3 interaction javascript library (using in, Server)
 - `ethers.js` : web3 interaction javascript library (using in, Client)
+- `React` : Client Development
 - `Nest.js` : Server Development
 - `PostgreSQL` : Database
 - `TypeORM` : Object-Relational Mapping for RDB Tool
-- `React` : Client Development
 
 ---
 
